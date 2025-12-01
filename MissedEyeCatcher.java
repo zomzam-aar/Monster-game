@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 /**
- * Missed Eye Catcher - renamed from Catch The Shape
+ * +++++++++Missed Eye Catcher - renamed from Catch The Shape
  */
 public class MissedEyeCatcher extends JPanel implements ActionListener {
 
@@ -29,14 +29,11 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
     double rotation = 0;
 
     double scale = 1.0;
-    double scaleSpeed = 0.05;
-    boolean scaleUp = true;
 
     int playerX = 160;
     int playerY = 360;
     int playerWidth = 160;
     int playerHeight = 75;
-    int playerSpeed = 10;
     double mouseTargetX = playerX;
     double mouseSmoothing = 0.15;
 
@@ -70,7 +67,7 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
     boolean inGameOver = false;
 
     JTextField nameField;
-    JComboBox<String> shapeSelector;
+    
     JButton startButton;
     JButton btnNewGame;
     JButton btnExit;
@@ -198,29 +195,7 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
         }
     }
 
-    void createMenu(JFrame frame) {
-        JMenuBar menuBar = new JMenuBar();
-        JMenu fileMenu = new JMenu("File");
-        JMenuItem newGame = new JMenuItem("New Game");
-        JMenuItem exit = new JMenuItem("Exit");
 
-        newGame.addActionListener(e -> restartGame());
-        exit.addActionListener(e -> System.exit(0));
-        fileMenu.add(newGame);
-        fileMenu.add(exit);
-
-        JMenu helpMenu = new JMenu("Help");
-        JMenuItem about = new JMenuItem("About");
-        about.addActionListener(e ->
-                JOptionPane.showMessageDialog(frame,
-                        "Faculty of Graphics  MultiMedia\n Graphics & Animation Dept\nv1.0\nBy: Rafeek Yanni.",
-                        "About", JOptionPane.INFORMATION_MESSAGE));
-        helpMenu.add(about);
-
-        menuBar.add(fileMenu);
-        menuBar.add(helpMenu);
-        frame.setJMenuBar(menuBar);
-    }
 
     void resetShape() {
         spawnCount++;
@@ -238,7 +213,6 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
         shapeX = random.nextInt(Math.max(1, WIDTH - shapeSize));
         shapeY = 0;
         scale = 1.0;
-        scaleUp = false;
     }
 
     @Override
