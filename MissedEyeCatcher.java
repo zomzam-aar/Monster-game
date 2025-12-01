@@ -84,7 +84,58 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
     Random starRandom = new Random();
     int spawnCount = 0;
     boolean shapeIsHeart = false;
+    
+    // Enhanced gameplay features
+    int combo = 0;
+    int maxCombo = 0;
+    long lastCatchTime = 0;
+    static final long COMBO_TIMEOUT = 3000; // 3 seconds to maintain combo
+    
+    // Particle system
+    List<Particle> particles = new ArrayList<>();
+    
+    // Visual effects
+    float shakeX = 0, shakeY = 0;
+    long shakeEndTime = 0;
+    
+    // Power-up system
+    boolean slowMotion = false;
+    long slowMotionEndTime = 0;
 
+    // Particle class for visual effects
+    class Particle {
+        float x, y, vx, vy;
+        Color color;
+        int life;
+        int maxLife;
+        
+        Particle(float x, float y, Color color) {
+            this.x = x;
+            this.y = y;
+            this.color = color;
+            this.vx = (float)(random.nextFloat() * 4 - 2);
+            this.vy = (float)(random.nextFloat() * 4 - 2);
+            this.maxLife = 30 + random.nextInt(20);
+            this.life = maxLife;
+        }
+        
+        void update() {
+            x += vx;
+            y += vy;
+            vy += 0.2f; // gravity
+            life--;
+        }
+        
+        void draw(Graphics2D g) {
+            float alpha = (float)life / maxLife;
+            g.setColor(new Color(color.getRed()/255f, color.getGreen()/255f, color.getBlue()/255f, alpha));
+            int size = (int)(4 * alpha) + 2;
+            g.fillOval((int)x, (int)y, size, size);
+        }
+        
+        boolean isDead() { return life <= 0; }
+    }
+    
     public MissedEyeCatcher() {
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         setFocusable(true);
@@ -151,8 +202,9 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
         nameField.setBounds(120, 130, 150, 25);
         add(nameField);
 
-        startButton = new JButton("Start Game");
-        startButton.setBounds(130, 250, 130, 30);
+        startButton = new JButton("▶️ Start Game");
+        startButton.setBounds(110, 250, 170, 40);
+        styleButton(startButton, new Color(46, 204, 113), Color.WHITE);
         startButton.addActionListener(e -> startGame());
         add(startButton);
 
@@ -177,21 +229,31 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
         removeAll();
         setLayout(null);
 
-        btnNewGame = new JButton("New Game");
-        btnExit = new JButton("Exit");
-        btnMainMenu = new JButton("Main Menu");
-        int spacing = 8;
-        int marginRight = 10;
-        int wExit = 80, wNew = 120, wMain = 110;
-        int xExit = WIDTH - marginRight - wExit;
-        int xNew = xExit - spacing - wNew;
-        int xMain = xNew - spacing - wMain;
-        btnNewGame.setBounds(xNew, 10, wNew, 28);
-        btnMainMenu.setBounds(xMain, 10, wMain, 28);
-        btnExit.setBounds(xExit, 10, wExit, 28);
+        btnNewGame = new JButton("🔄 New Game");
+        btnMainMenu = new JButton("🏠 Menu");
+        btnExit = new JButton("❌ Exit");
+        
+        // Position buttons vertically on the right side with better spacing
+        int btnWidth = 140;
+        int btnHeight = 35;
+        int marginRight = 15;
+        int marginTop = 15;
+        int spacing = 12;
+        int xPos = WIDTH - marginRight - btnWidth;
+        
+        btnNewGame.setBounds(xPos, marginTop, btnWidth, btnHeight);
+        btnMainMenu.setBounds(xPos, marginTop + btnHeight + spacing, btnWidth, btnHeight);
+        btnExit.setBounds(xPos, marginTop + (btnHeight + spacing) * 2, btnWidth, btnHeight);
+        
+        // Style buttons
+        styleButton(btnNewGame, new Color(46, 204, 113), Color.WHITE); // Green
+        styleButton(btnMainMenu, new Color(52, 152, 219), Color.WHITE); // Blue
+        styleButton(btnExit, new Color(231, 76, 60), Color.WHITE); // Red
+        
         btnNewGame.addActionListener(e -> restartGame());
-        btnExit.addActionListener(e -> System.exit(0));
         btnMainMenu.addActionListener(e -> goToMainMenu());
+        btnExit.addActionListener(e -> System.exit(0));
+        
         add(btnNewGame);
         add(btnMainMenu);
         add(btnExit);
@@ -245,8 +307,30 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
     @Override
     public void actionPerformed(ActionEvent e) {
         if (!gameRunning) return;
-        shapeY += shapeSpeed;
-        rotation += 0;
+        
+        // Apply slow motion effect if active
+        int actualSpeed = slowMotion && System.currentTimeMillis() < slowMotionEndTime ? shapeSpeed / 2 : shapeSpeed;
+        shapeY += actualSpeed;
+        
+        // Rotate shapes for visual appeal
+        rotation += 0.05;
+        
+        // Update particles
+        particles.removeIf(Particle::isDead);
+        for (Particle p : particles) p.update();
+        
+        // Check combo timeout
+        if (System.currentTimeMillis() - lastCatchTime > COMBO_TIMEOUT && combo > 0) {
+            combo = 0;
+        }
+        
+        // Update screen shake
+        if (System.currentTimeMillis() < shakeEndTime) {
+            shakeX = (float)(Math.random() * 6 - 3);
+            shakeY = (float)(Math.random() * 6 - 3);
+        } else {
+            shakeX = shakeY = 0;
+        }
 
         int dynamicSizeNow = (int)(shapeSize * scale);
         if (shapeY + dynamicSizeNow >= playerY &&
@@ -254,20 +338,34 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
                 shapeX <= playerX + playerWidth) {
             if (shapeIsHeart) {
                 lives++;
+                combo++;
+                lastCatchTime = System.currentTimeMillis();
                 catchText = "+1 Life";
                 catchTextX = shapeX + dynamicSizeNow/2;
                 catchTextY = playerY - 10;
                 catchTextEndTime = System.currentTimeMillis() + 1000;
                 playSound("./assets/eating1.wav");
+                spawnParticles(shapeX + dynamicSizeNow/2, shapeY + dynamicSizeNow/2, Color.PINK, 15);
                 resetShape();
                 bgColor = Color.GREEN.darker();
                 effectEndTime = System.currentTimeMillis() + 200;
             } else {
+                combo++;
+                lastCatchTime = System.currentTimeMillis();
+                if (combo > maxCombo) maxCombo = combo;
+                
                 int gained = 1;
                 if (dynamicSizeNow >= 50) gained = 2;
+                
+                // Combo bonus: every 5 combo adds 1 extra point
+                int comboBonus = combo / 5;
+                gained += comboBonus;
+                
                 score += gained;
-                if (gained > 1) {
-                    catchText = "2x";
+                
+                if (gained > 1 || combo >= 5) {
+                    String bonusText = gained > 2 ? "+" + gained : combo >= 5 ? "COMBO x" + combo : "2x";
+                    catchText = bonusText;
                     catchTextX = shapeX + dynamicSizeNow/2;
                     catchTextY = playerY - 10;
                     catchTextEndTime = System.currentTimeMillis() + 800;
@@ -275,23 +373,43 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
 
                 String[] eats = {"./assets/eating1.wav", "./assets/eating2.wav"};
                 playSound(eats[random.nextInt(eats.length)]);
+                
+                // Spawn particles based on combo
+                Color particleColor = combo >= 10 ? Color.YELLOW : combo >= 5 ? Color.ORANGE : Color.CYAN;
+                spawnParticles(shapeX + dynamicSizeNow/2, shapeY + dynamicSizeNow/2, particleColor, 10 + combo);
+                
                 resetShape();
                 bgColor = Color.darkGray;
                 effectEndTime = System.currentTimeMillis() + 200;
 
                 if (score % 5 == 0) { level++; shapeSpeed++; }
                 if (score > highScore) highScore = score;
+                
+                // Activate slow motion every 20 points
+                if (score > 0 && score % 20 == 0) {
+                    slowMotion = true;
+                    slowMotionEndTime = System.currentTimeMillis() + 3000;
+                }
             }
         }
 
         if (shapeY > HEIGHT) {
             File lf = new File("./assets/lose-heart.wav");
             if (lf.exists()) playSound("./assets/lose-heart.wav"); else playSound("./assets/miss.wav");
+            
+            // Reset combo on miss
+            combo = 0;
+            
             lives--;
             if (lives <= 0) {
                 gameOver();
                 return;
             }
+            
+            // Screen shake on miss
+            shakeEndTime = System.currentTimeMillis() + 200;
+            spawnParticles(WIDTH/2, HEIGHT - 20, Color.RED, 20);
+            
             resetShape();
             bgColor = Color.red;
             effectEndTime = System.currentTimeMillis() + 200;
@@ -317,6 +435,9 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
+        
+        // Apply screen shake
+        g2d.translate(shakeX, shakeY);
 
         if (inWelcomeScreen) {
             if (startBackground != null) {
@@ -389,6 +510,29 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
         g2d.drawString("Score: " + score, 10, 40);
         g2d.drawString("Level: " + level, 10, 60);
         g2d.drawString("High: " + highScore, 300, 20);
+        
+        // Draw combo counter
+        if (combo > 0) {
+            g2d.setFont(new Font("Arial", Font.BOLD, 24));
+            Color comboColor = combo >= 10 ? Color.YELLOW : combo >= 5 ? Color.ORANGE : Color.CYAN;
+            g2d.setColor(comboColor);
+            g2d.drawString("COMBO: " + combo, WIDTH - 200, 30);
+            g2d.setFont(new Font("Arial", Font.PLAIN, 12));
+        }
+        
+        // Draw max combo
+        if (maxCombo > 0) {
+            g2d.setColor(Color.LIGHT_GRAY);
+            g2d.drawString("Max Combo: " + maxCombo, WIDTH - 200, 50);
+        }
+        
+        // Draw slow motion indicator
+        if (slowMotion && System.currentTimeMillis() < slowMotionEndTime) {
+            g2d.setFont(new Font("Arial", Font.BOLD, 16));
+            g2d.setColor(Color.CYAN);
+            g2d.drawString("⏱ SLOW MOTION", WIDTH/2 - 70, HEIGHT - 20);
+            g2d.setFont(new Font("Arial", Font.PLAIN, 12));
+        }
 
         if (heartImage != null) {
             int hw = 18;
@@ -412,6 +556,14 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
         } else {
             catchText = null;
         }
+        
+        // Draw particles
+        for (Particle p : particles) {
+            p.draw(g2d);
+        }
+        
+        // Reset transform (undo shake)
+        g2d.translate(-shakeX, -shakeY);
     }
 
     void drawStar(Graphics2D g, int x, int y, int radius1, int radius2, int points) {
@@ -423,6 +575,35 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
             p.addPoint((int)(x + Math.cos(a)*r), (int)(y + Math.sin(a)*r));
         }
         g.fillPolygon(p);
+    }
+    
+    void spawnParticles(int x, int y, Color color, int count) {
+        for (int i = 0; i < count; i++) {
+            particles.add(new Particle(x, y, color));
+        }
+    }
+    
+    void styleButton(JButton btn, Color bgColor, Color fgColor) {
+        btn.setBackground(bgColor);
+        btn.setForeground(fgColor);
+        btn.setFont(new Font("Arial", Font.BOLD, 14));
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(true);
+        btn.setBorder(BorderFactory.createLineBorder(bgColor.darker(), 2));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        // Add hover effect
+        btn.addMouseListener(new MouseAdapter() {
+            Color originalBg = bgColor;
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                btn.setBackground(bgColor.brighter());
+            }
+            @Override
+            public void mouseExited(MouseEvent e) {
+                btn.setBackground(originalBg);
+            }
+        });
     }
 
     void playSound(String fileName) {
@@ -590,6 +771,10 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
         level = 1;
         lives = 3;
         shapeSpeed = 3;
+        combo = 0;
+        maxCombo = 0;
+        particles.clear();
+        slowMotion = false;
 
         removeAll();
         setLayout(null);
@@ -631,24 +816,38 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
         level = 1;
         lives = 3;
         shapeSpeed = 3;
+        combo = 0;
+        maxCombo = 0;
+        particles.clear();
+        slowMotion = false;
         removeAll();
         setLayout(null);
 
-        btnNewGame = new JButton("New Game");
-        btnExit = new JButton("Exit");
-        btnMainMenu = new JButton("Main Menu");
-        int spacing = 8;
-        int marginRight = 10;
-        int wExit = 80, wNew = 120, wMain = 110;
-        int xExit = WIDTH - marginRight - wExit;
-        int xNew = xExit - spacing - wNew;
-        int xMain = xNew - spacing - wMain;
-        btnNewGame.setBounds(xNew, 10, wNew, 28);
-        btnMainMenu.setBounds(xMain, 10, wMain, 28);
-        btnExit.setBounds(xExit, 10, wExit, 28);
+        btnNewGame = new JButton("🔄 New Game");
+        btnMainMenu = new JButton("🏠 Menu");
+        btnExit = new JButton("❌ Exit");
+        
+        // Position buttons vertically on the right side with better spacing
+        int btnWidth = 140;
+        int btnHeight = 35;
+        int marginRight = 15;
+        int marginTop = 15;
+        int spacing = 12;
+        int xPos = WIDTH - marginRight - btnWidth;
+        
+        btnNewGame.setBounds(xPos, marginTop, btnWidth, btnHeight);
+        btnMainMenu.setBounds(xPos, marginTop + btnHeight + spacing, btnWidth, btnHeight);
+        btnExit.setBounds(xPos, marginTop + (btnHeight + spacing) * 2, btnWidth, btnHeight);
+        
+        // Style buttons
+        styleButton(btnNewGame, new Color(46, 204, 113), Color.WHITE); // Green
+        styleButton(btnMainMenu, new Color(52, 152, 219), Color.WHITE); // Blue
+        styleButton(btnExit, new Color(231, 76, 60), Color.WHITE); // Red
+        
         btnNewGame.addActionListener(e -> restartGame());
-        btnExit.addActionListener(e -> System.exit(0));
         btnMainMenu.addActionListener(e -> goToMainMenu());
+        btnExit.addActionListener(e -> System.exit(0));
+        
         add(btnNewGame);
         add(btnMainMenu);
         add(btnExit);
