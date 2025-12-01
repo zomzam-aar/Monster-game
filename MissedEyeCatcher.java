@@ -10,6 +10,11 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.io.ByteArrayInputStream;
 
 /**
  * +++++++++Missed Eye Catcher - renamed from Catch The Shape
@@ -59,6 +64,7 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
     Timer gameVoiceTimer = null;
     String welcomeVoiceFile = "roar-echo.wav";
     final List<Clip> activeClips = new ArrayList<>();
+    final Map<String, byte[]> preloadedSounds = new HashMap<>();
 
     String playerName = "Player";
 
@@ -109,8 +115,29 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
             if (mg.exists()) monsterImage = new ImageIcon(mg.getPath()).getImage();
         } catch (IOException ignored) {}
 
+        // preload essential short sounds into memory to avoid first-play disk I/O delays
+        preloadEssentialSounds();
+
         createWelcomeScreen();
         playStartMusicLoop();
+    }
+
+    void preloadEssentialSounds() {
+        String[] essentials = new String[] {
+            "./assets/gameover.wav",
+            "./assets/miss.wav",
+            "./assets/eating1.wav",
+            "./assets/eating2.wav",
+            "./assets/lose-heart.wav"
+        };
+        for (String p : essentials) {
+            try {
+                File f = new File(p);
+                if (!f.exists()) continue;
+                byte[] data = Files.readAllBytes(Paths.get(p));
+                preloadedSounds.put(p, data);
+            } catch (Exception ignored) {}
+        }
     }
 
     void createWelcomeScreen() {
@@ -399,34 +426,48 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
     }
 
     void playSound(String fileName) {
-        try {
-            File f = new File(fileName);
-            if (!f.exists()) return;
-            AudioInputStream audio = AudioSystem.getAudioInputStream(f);
-            Clip clip = AudioSystem.getClip();
-            clip.open(audio);
-            synchronized (activeClips) { activeClips.add(clip); }
-            clip.addLineListener(ev -> {
-                if (ev.getType() == LineEvent.Type.STOP) {
-                    try { clip.close(); } catch (Exception ignored) {}
-                    synchronized (activeClips) { activeClips.remove(clip); }
+        // Load and play short sounds off the Event Dispatch Thread to avoid UI freezes
+        new Thread(() -> {
+            try {
+                AudioInputStream audio;
+                byte[] data = preloadedSounds.get(fileName);
+                if (data != null) {
+                    audio = AudioSystem.getAudioInputStream(new ByteArrayInputStream(data));
+                } else {
+                    File f = new File(fileName);
+                    if (!f.exists()) return;
+                    audio = AudioSystem.getAudioInputStream(f);
                 }
-            });
-            clip.start();
-        } catch (Exception ignored) {}
+                Clip clip = AudioSystem.getClip();
+                clip.open(audio);
+                synchronized (activeClips) { activeClips.add(clip); }
+                clip.addLineListener(ev -> {
+                    if (ev.getType() == LineEvent.Type.STOP) {
+                        try { clip.close(); } catch (Exception ignored) {}
+                        synchronized (activeClips) { activeClips.remove(clip); }
+                    }
+                });
+                clip.start();
+            } catch (Exception ignored) {}
+        }, "AudioPlayer").start();
     }
 
     void playStartMusicLoop() {
-        try {
-            File f = new File("./assets/start.wav");
-            if (!f.exists()) return;
-            AudioInputStream audio = AudioSystem.getAudioInputStream(f);
-            startMusicClip = AudioSystem.getClip();
-            startMusicClip.open(audio);
-            startMusicClip.loop(Clip.LOOP_CONTINUOUSLY);
-        } catch (Exception e) {
-            startMusicClip = null;
-        }
+        // Load looping start music in background to avoid blocking the EDT
+        new Thread(() -> {
+            try {
+                File f = new File("./assets/start.wav");
+                if (!f.exists()) return;
+                AudioInputStream audio = AudioSystem.getAudioInputStream(f);
+                Clip clip = AudioSystem.getClip();
+                clip.open(audio);
+                clip.loop(Clip.LOOP_CONTINUOUSLY);
+                // store reference so it can be stopped later
+                startMusicClip = clip;
+            } catch (Exception e) {
+                startMusicClip = null;
+            }
+        }, "StartMusicLoader").start();
     }
 
     void stopStartMusic() {
@@ -449,18 +490,28 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
     }
 
     void gameOver() {
+        // Stop the game loop first
         timer.stop();
-        stopGameMusic();
-        stopAllShortClips();
-        playSound("./assets/gameover.wav");
+        // set flags so UI knows state
         gameRunning = false;
         inGameOver = true;
         if (gameVoiceTimer != null) { gameVoiceTimer.stop(); gameVoiceTimer = null; }
+
+        // Build and show the Game Over UI first so player sees it immediately
         removeAll();
         setLayout(null);
         createGameOverScreen();
         revalidate();
         repaint();
+        // Force immediate paint of the panel to ensure the Game Over screen is visible
+        try {
+            this.paintImmediately(0, 0, WIDTH, HEIGHT);
+        } catch (Exception ignored) {}
+
+        // Now stop music and other clips (quick operations) and play the game-over sound asynchronously
+        stopGameMusic();
+        stopAllShortClips();
+        playSound("./assets/gameover.wav");
     }
 
     void createGameOverScreen() {
@@ -550,15 +601,19 @@ public class MissedEyeCatcher extends JPanel implements ActionListener {
     }
 
     void playGameMusicLoop() {
-        try {
-            try { if (gameMusicClip != null && gameMusicClip.isRunning()) { gameMusicClip.stop(); gameMusicClip.close(); } } catch (Exception ignored) {}
-            File f = new File("./assets/game.wav");
-            if (!f.exists()) return;
-            AudioInputStream audio = AudioSystem.getAudioInputStream(f);
-            gameMusicClip = AudioSystem.getClip();
-            gameMusicClip.open(audio);
-            gameMusicClip.loop(Clip.LOOP_CONTINUOUSLY);
-        } catch (Exception ignored) { gameMusicClip = null; }
+        // Load and start looping game music on a background thread to avoid blocking
+        new Thread(() -> {
+            try {
+                try { if (gameMusicClip != null && gameMusicClip.isRunning()) { gameMusicClip.stop(); gameMusicClip.close(); } } catch (Exception ignored) {}
+                File f = new File("./assets/game.wav");
+                if (!f.exists()) return;
+                AudioInputStream audio = AudioSystem.getAudioInputStream(f);
+                Clip clip = AudioSystem.getClip();
+                clip.open(audio);
+                clip.loop(Clip.LOOP_CONTINUOUSLY);
+                gameMusicClip = clip;
+            } catch (Exception ignored) { gameMusicClip = null; }
+        }, "GameMusicLoader").start();
     }
 
     void stopGameMusic() {
