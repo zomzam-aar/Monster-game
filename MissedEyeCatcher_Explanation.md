@@ -1,14 +1,15 @@
-# CatchTheBall.java — Detailed Code Walkthrough
+````markdown
+# MissedEyeCatcher.java — Detailed Code Walkthrough
 
-This document explains how `CatchTheBall.java` works. It is written as an academic-friendly walkthrough appropriate for submission to a supervisor or professor.
+This document explains how `MissedEyeCatcher.java` works. It is written as an academic-friendly walkthrough appropriate for submission to a supervisor or professor.
 
 ---
 
 ## Project Summary
 
-`CatchTheBall.java` is a self-contained Java Swing application implementing a small 2D arcade game. Shapes fall from the top of the screen and the player moves a paddle (the "monster") horizontally to catch them. The game includes images, animations, sound effects, and simple game state (score, level, lives, high score).
+`MissedEyeCatcher.java` is a self-contained Java Swing application implementing a small 2D arcade game. Shapes fall from the top of the screen and the player moves a paddle (the "monster") horizontally to catch them. The game includes images, animations, sound effects, and simple game state (score, level, lives, high score).
 
-The implementation favors clarity and direct Swing usage rather than architectural separation — all logic, rendering and UI components are combined in a single class `CatchTheBall`.
+The implementation favors clarity and direct Swing usage rather than architectural separation — all logic, rendering and UI components are combined in a single class `MissedEyeCatcher`.
 
 ---
 
@@ -20,15 +21,15 @@ The implementation favors clarity and direct Swing usage rather than architectur
 2. Compile and run:
 
 ```bash
-javac CatchTheBall.java
-java CatchTheBall
+javac MissedEyeCatcher.java
+java MissedEyeCatcher
 ```
 
 ---
 
 ## High-level structure
 
-- `public class CatchTheBall extends JPanel implements ActionListener` — the main game class.
+- `public class MissedEyeCatcher extends JPanel implements ActionListener` — the main game class.
 - The game runs on a Swing `Timer` (`timer`) that triggers `actionPerformed` at roughly 20 ms intervals (about 50 FPS).
 - UI and rendering: `paintComponent(Graphics g)` performs all drawing using `Graphics2D`.
 - Sounds use the Java Sound API (`javax.sound.sampled.Clip`).
@@ -63,7 +64,7 @@ java CatchTheBall
    - Uses a `null` (absolute) layout and places a `JLabel` and `JTextField` for entering player name and a `Start Game` button.
    - Plays the welcome voice once and starts a `Timer` (`welcomeVoiceTimer`) to replay it periodically while the welcome screen is active.
 
-2. **Game Screen (`startGame`)**
+2. **Game Screen (`startGame`)**n+
    - Removes the welcome components, creates in-game buttons (`New Game`, `Main Menu`, `Exit`) positioned at the top-right.
    - Calls `resetShape()` to spawn the first falling item and initializes moving-stars background.
    - Starts the gameplay timer and loops the game music.
@@ -145,7 +146,7 @@ java CatchTheBall
 
 ## Short executive summary (one paragraph)
 
-`CatchTheBall.java` is a compact Swing-based arcade game combining drawing, animation, sound, and simple input handling in a single class. A Swing `Timer` runs the game loop while `paintComponent` performs custom rendering. The code demonstrates basic game programming concepts—collision detection, spawn logic, score/lives management, sprite rendering, and audio playback—while remaining intentionally straightforward and easy to extend.
+`MissedEyeCatcher.java` is a compact Swing-based arcade game combining drawing, animation, sound, and simple input handling in a single class. A Swing `Timer` runs the game loop while `paintComponent` performs custom rendering. The code demonstrates basic game programming concepts—collision detection, spawn logic, score/lives management, sprite rendering, and audio playback—while remaining intentionally straightforward and easy to extend.
 
 ---
 
@@ -154,3 +155,4 @@ If you'd like, I can also:
 - Add inline comments to the Java source file highlighting key blocks.
 - Split the code into smaller classes and update the project structure for submission.
 
+````
