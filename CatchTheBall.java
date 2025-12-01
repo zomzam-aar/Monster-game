@@ -145,17 +145,17 @@ public class CatchTheBall extends JPanel implements ActionListener {
 
         // حاول تحميل صور الخلفية والشكل
         try {
-            File f = new File("./BackGround.png");
+            File f = new File("./assets/BackGround.png");
             if (f.exists()) backgroundImage = ImageIO.read(f);
-            File sf = new File("./fireball.png");
+            File sf = new File("./assets/fireball.png");
             if (sf.exists()) shapeImage = ImageIO.read(sf);
-            File hf = new File("./heart.png");
+            File hf = new File("./assets/heart.png");
             if (hf.exists()) heartImage = ImageIO.read(hf);
-            File go = new File("./game_over.png");
+            File go = new File("./assets/game_over.png");
             if (go.exists()) gameOverImage = ImageIO.read(go);
-            File sb = new File("./StartBackGround.png");
+            File sb = new File("./assets/StartBackGround.png");
             if (sb.exists()) startBackground = ImageIO.read(sb);
-            File mg = new File("./monster.gif");
+            File mg = new File("./assets/monster.gif");
             if (mg.exists()) monsterImage = new ImageIcon(mg.getPath()).getImage();
         } catch (IOException ignored) {}
 
@@ -194,11 +194,11 @@ public class CatchTheBall extends JPanel implements ActionListener {
 
         // start music now triggered from constructor or when returning to main menu
         // play a welcome voice immediately and then every 20 seconds
-        File vf = new File(welcomeVoiceFile);
+        File vf = new File("./assets/" + welcomeVoiceFile);
         if (vf.exists()) {
-            playSound(welcomeVoiceFile);
+            playSound("./assets/" + welcomeVoiceFile);
             if (welcomeVoiceTimer != null) welcomeVoiceTimer.stop();
-            welcomeVoiceTimer = new Timer(15000, ev -> playSound(welcomeVoiceFile));
+            welcomeVoiceTimer = new Timer(15000, ev -> playSound("./assets/" + welcomeVoiceFile));
             welcomeVoiceTimer.setInitialDelay(15000);
             welcomeVoiceTimer.setRepeats(true);
             welcomeVoiceTimer.start();
@@ -258,11 +258,11 @@ public class CatchTheBall extends JPanel implements ActionListener {
         // start gameplay music loop
         playGameMusicLoop();
         // start in-game repeating voice if file exists: play immediately then every 10s
-        File gv = new File("./monster-growl.wav");
+        File gv = new File("./assets/monster-growl.wav");
         if (gv.exists()) {
-            playSound("monster-growl.wav");
+            playSound("./assets/monster-growl.wav");
             if (gameVoiceTimer != null) gameVoiceTimer.stop();
-            gameVoiceTimer = new Timer(10000, ev -> playSound("monster-growl.wav"));
+            gameVoiceTimer = new Timer(10000, ev -> playSound("./assets/monster-growl.wav"));
             gameVoiceTimer.setInitialDelay(10000);
             gameVoiceTimer.setRepeats(true);
             gameVoiceTimer.start();
@@ -350,7 +350,7 @@ public class CatchTheBall extends JPanel implements ActionListener {
                 catchTextX = shapeX + dynamicSizeNow/2;
                 catchTextY = playerY - 10;
                 catchTextEndTime = System.currentTimeMillis() + 1000;
-                playSound("eating1.wav");
+                playSound("./assets/eating1.wav");
                 resetShape();
                 bgColor = Color.GREEN.darker();
                 effectEndTime = System.currentTimeMillis() + 200;
@@ -368,7 +368,7 @@ public class CatchTheBall extends JPanel implements ActionListener {
                 }
 
                 // play one of two random eating sounds when caught
-                String[] eats = {"eating1.wav", "eating2.wav"};
+                String[] eats = {"./assets/eating1.wav", "./assets/eating2.wav"};
                 playSound(eats[random.nextInt(eats.length)]);
                 resetShape();
                 bgColor = Color.darkGray;
@@ -384,8 +384,8 @@ public class CatchTheBall extends JPanel implements ActionListener {
         // -------------------------
         if (shapeY > HEIGHT) {
             // Play a dedicated lose-life sound if available, otherwise fallback to miss.wav
-            File lf = new File("./lose-heart.wav");
-            if (lf.exists()) playSound("lose-heart.wav"); else playSound("miss.wav");
+            File lf = new File("./assets/lose-heart.wav");
+            if (lf.exists()) playSound("./assets/lose-heart.wav"); else playSound("./assets/miss.wav");
             // decrement life first and if player has no lives left, immediately trigger game over
             lives--;
             if (lives <= 0) {
@@ -591,7 +591,7 @@ public class CatchTheBall extends JPanel implements ActionListener {
     // Play a looping WAV on the start screen. Use file './StartBackGround.wav' or './start.wav'.
     void playStartMusicLoop() {
         try {
-            File f = new File("./start.wav");
+            File f = new File("./assets/start.wav");
             if (!f.exists()) return;
             AudioInputStream audio = AudioSystem.getAudioInputStream(f);
             startMusicClip = AudioSystem.getClip();
@@ -631,8 +631,8 @@ public class CatchTheBall extends JPanel implements ActionListener {
         timer.stop();
         stopGameMusic();
         stopAllShortClips();
-        // play game over sound once (place gameover.wav in project folder)
-        playSound("gameover.wav");
+        // play game over sound once (in assets folder)
+        playSound("./assets/gameover.wav");
         gameRunning = false;
         inGameOver = true;
         if (gameVoiceTimer != null) { gameVoiceTimer.stop(); gameVoiceTimer = null; }
@@ -744,7 +744,7 @@ public class CatchTheBall extends JPanel implements ActionListener {
         try {
             // stop existing game music if any
             try { if (gameMusicClip != null && gameMusicClip.isRunning()) { gameMusicClip.stop(); gameMusicClip.close(); } } catch (Exception ignored) {}
-            File f = new File("./game.wav");
+            File f = new File("./assets/game.wav");
             if (!f.exists()) return;
             AudioInputStream audio = AudioSystem.getAudioInputStream(f);
             gameMusicClip = AudioSystem.getClip();
